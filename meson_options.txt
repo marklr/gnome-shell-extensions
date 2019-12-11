@@ -16,3 +16,5 @@ option('classic_mode',
   value: false,
   description: 'Enable installing data files for classic mode.'
 )
+
+option('systemd', type: 'feature', value: 'enabled', description: 'Built systemd user session definition')
