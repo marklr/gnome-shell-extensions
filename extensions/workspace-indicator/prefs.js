@@ -1,7 +1,7 @@
 // -*- mode: js2; indent-tabs-mode: nil; js2-basic-offset: 4 -*-
 /* exported init buildPrefsWidget */
 
-const { Gdk, Gio, GLib, GObject, Gtk, Pango } = imports.gi;
+const { Gio, GLib, GObject, Gtk, Pango } = imports.gi;
 
 const Gettext = imports.gettext.domain('gnome-shell-extensions');
 const _ = Gettext.gettext;
@@ -94,8 +94,6 @@ class WorkspaceSettingsWidget extends Gtk.ScrolledWindow {
         this._settings.connect(`changed::${WORKSPACE_KEY}`,
             this._sync.bind(this));
         this._sync();
-
-        this.show_all();
     }
 
     _getWorkspaceRows() {
@@ -129,6 +127,13 @@ class WorkspaceRow extends Gtk.ListBoxRow {
     _init(name) {
         super._init({ name });
 
+        const controller = new Gtk.ShortcutController();
+        controller.add_shortcut(new Gtk.Shortcut({
+            trigger: Gtk.ShortcutTrigger.parse_string('Escape'),
+            action: Gtk.CallbackAction.new(this._stopEdit.bind(this)),
+        }));
+        this.add_controller(controller);
+
         const box = new Gtk.Box({
             spacing: 12,
             margin_top: 6,
@@ -147,14 +152,10 @@ class WorkspaceRow extends Gtk.ListBoxRow {
             GObject.BindingFlags.SYNC_CREATE);
         box.add(label);
 
-        const image = new Gtk.Image({
-            icon_name: 'edit-delete-symbolic',
-            pixel_size: 16,
-        });
         const button = new Gtk.Button({
             action_name: 'workspaces.remove',
             action_target: new GLib.Variant('s', name),
-            image,
+            icon_name: 'edit-delete-symbolic',
         });
         box.add(button);
 
@@ -176,17 +177,11 @@ class WorkspaceRow extends Gtk.ListBoxRow {
                 return;
             this._stopEdit();
         });
-        this._entry.connect('key-press-event',
-            this._onEntryKeyPress.bind(this));
 
         this.connect('notify::name', () => {
             button.action_target = new GLib.Variant('s', this.name);
-
-            const actionGroup = this.get_action_group('workspaces');
-            actionGroup.activate_action('update', null);
+            this.activate_action('workspaces.update', null);
         });
-
-        this.show_all();
     }
 
     edit() {
@@ -198,14 +193,6 @@ class WorkspaceRow extends Gtk.ListBoxRow {
     _stopEdit() {
         this.grab_focus();
         this._stack.visible_child_name = 'display';
-    }
-
-    _onEntryKeyPress(entry, event) {
-        const [, keyval] = event.get_keyval();
-        if (keyval !== Gdk.KEY_Escape)
-            return Gdk.EVENT_PROPAGATE;
-        this._stopEdit();
-        return Gdk.EVENT_STOP;
     }
 });
 
@@ -225,8 +212,6 @@ class NewWorkspaceRow extends Gtk.ListBoxRow {
             margin_start: 12,
             margin_end: 12,
         }));
-
-        this.show_all();
     }
 });
 

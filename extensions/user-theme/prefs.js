@@ -29,13 +29,16 @@ class UserThemePrefsWidget extends Gtk.ScrolledWindow {
         this.add(box);
 
         this._list = new Gtk.ListBox({
+            show_separators: true,
             halign: Gtk.Align.CENTER,
             valign: Gtk.Align.START,
             hexpand: true,
-            margin: 60,
+            margin_top: 60,
+            margin_bottom: 60,
+            margin_start: 60,
+            margin_end: 60,
         });
         this._list.get_style_context().add_class('frame');
-        this._list.set_header_func(this._updateHeader.bind(this));
         box.add(this._list);
 
         this._actionGroup = new Gio.SimpleActionGroup();
@@ -89,11 +92,10 @@ class UserThemePrefsWidget extends Gtk.ScrolledWindow {
     }
 
     _addTheme(name) {
-        const row = new ThemeRow(name);
+        const row = new ThemeRow(name, this._settings);
         this._rows.set(name, row);
 
         this._list.add(row);
-        row.show_all();
     }
 
     async _enumerateDir(dir) {
@@ -120,27 +122,26 @@ class UserThemePrefsWidget extends Gtk.ScrolledWindow {
 
         return fileInfos.map(info => info.get_name());
     }
-
-    _updateHeader(row, before) {
-        if (!before || row.get_header())
-            return;
-        row.set_header(new Gtk.Separator());
-    }
 });
 
 const ThemeRow = GObject.registerClass(
 class ThemeRow extends Gtk.ListBoxRow {
-    _init(name) {
-        this._name = new GLib.Variant('s', name);
+    _init(name, settings) {
+        this._name = name;
+        this._settings = settings;
 
+        const target = new GLib.Variant('s', name);
         super._init({
             action_name: 'theme.name',
-            action_target: this._name,
+            action_target: target,
         });
 
         const box = new Gtk.Box({
             spacing: 12,
-            margin: 12,
+            margin_top: 12,
+            margin_bottom: 12,
+            margin_start: 12,
+            margin_end: 12,
         });
         this.add(box);
 
@@ -158,22 +159,19 @@ class ThemeRow extends Gtk.ListBoxRow {
         });
         box.add(this._checkmark);
 
-        box.show_all();
+        const id = this._settings.connect('changed::name',
+            this._syncCheckmark.bind(this));
+        this._syncCheckmark();
 
-        const id = this.connect('parent-set', () => {
-            this.disconnect(id);
-
-            const actionGroup = this.get_action_group('theme');
-            actionGroup.connect('action-state-changed::name',
-                this._syncCheckmark.bind(this));
-            this._syncCheckmark();
+        this.connect('destroy', () => {
+            this._settings.disconnect(id);
+            this._settings = null;
         });
     }
 
     _syncCheckmark() {
-        const actionGroup = this.get_action_group('theme');
-        const state = actionGroup.get_action_state('name');
-        this._checkmark.opacity = this._name.equal(state);
+        const visible = this._name === this._settings.get_string('name');
+        this._checkmark.opacity = visible ? 1. : 0.;
     }
 });
 
@@ -181,8 +179,5 @@ function init() {
 }
 
 function buildPrefsWidget() {
-    let widget = new UserThemePrefsWidget();
-    widget.show_all();
-
-    return widget;
+    return new UserThemePrefsWidget();
 }

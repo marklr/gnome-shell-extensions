@@ -24,8 +24,13 @@ const Columns = {
 
 const Widget = GObject.registerClass(
 class Widget extends Gtk.Grid {
-    _init(params) {
-        super._init(params);
+    _init() {
+        super._init({
+            margin_top: 12,
+            margin_bottom: 12,
+            margin_start: 12,
+            margin_end: 12,
+        });
         this.set_orientation(Gtk.Orientation.VERTICAL);
 
         this._settings = ExtensionUtils.getSettings();
@@ -79,7 +84,7 @@ class Widget extends Gtk.Grid {
 
         scrolled.add(this._treeView);
 
-        let toolbar = new Gtk.Toolbar({ icon_size: Gtk.IconSize.SMALL_TOOLBAR });
+        let toolbar = new Gtk.Box();
         toolbar.get_style_context().add_class(Gtk.STYLE_CLASS_INLINE_TOOLBAR);
         this.add(toolbar);
 
@@ -119,7 +124,10 @@ class Widget extends Gtk.Grid {
         let grid = new Gtk.Grid({
             column_spacing: 10,
             row_spacing: 15,
-            margin: 10,
+            margin_top: 10,
+            margin_bottom: 10,
+            margin_start: 10,
+            margin_end: 10,
         });
         dialog._appChooser = new Gtk.AppChooserWidget({ show_all: true });
         dialog._appChooser.connect('application-selected', (w, appInfo) => {
@@ -167,7 +175,6 @@ class Widget extends Gtk.Grid {
 
             dialog.destroy();
         });
-        dialog.show_all();
     }
 
     _deleteSelected() {
@@ -275,8 +282,5 @@ function init() {
 }
 
 function buildPrefsWidget() {
-    let widget = new Widget({ margin: 12 });
-    widget.show_all();
-
-    return widget;
+    return new Widget();
 }

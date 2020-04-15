@@ -1,7 +1,7 @@
 // -*- mode: js2; indent-tabs-mode: nil; js2-basic-offset: 4 -*-
 /* exported init buildPrefsWidget */
 
-const { Gio, GObject, Gtk } = imports.gi;
+const { Gio, GLib, GObject, Gtk } = imports.gi;
 
 const Gettext = imports.gettext.domain('gnome-shell-extensions');
 const _ = Gettext.gettext;
@@ -15,12 +15,15 @@ function init() {
 
 const WindowListPrefsWidget = GObject.registerClass(
 class WindowListPrefsWidget extends Gtk.Grid {
-    _init(params) {
-        super._init(params);
-
-        this.margin = 24;
-        this.row_spacing = 6;
-        this.orientation = Gtk.Orientation.VERTICAL;
+    _init() {
+        super._init({
+            margin_top: 24,
+            margin_bottom: 24,
+            margin_start: 24,
+            margin_end: 24,
+            row_spacing: 6,
+            orientation: Gtk.Orientation.VERTICAL,
+        });
 
         let groupingLabel = '<b>%s</b>'.format(_('Window Grouping'));
         this.add(new Gtk.Label({
@@ -28,18 +31,20 @@ class WindowListPrefsWidget extends Gtk.Grid {
             halign: Gtk.Align.START,
         }));
 
-        let align = new Gtk.Alignment({ left_padding: 12 });
-        this.add(align);
-
         let grid = new Gtk.Grid({
             orientation: Gtk.Orientation.VERTICAL,
             row_spacing: 6,
             column_spacing: 6,
+            margin_start: 12,
         });
-        align.add(grid);
+        this.add(grid);
 
         this._settings = ExtensionUtils.getSettings();
-        let currentMode = this._settings.get_string('grouping-mode');
+        this._actionGroup = new Gio.SimpleActionGroup();
+        for (const key of this._settings.list_keys())
+            this._actionGroup.add_action(this._settings.create_action(key));
+        this.insert_action_group('window-list', this._actionGroup);
+
         let range = this._settings.get_range('grouping-mode');
         let modes = range.deep_unpack()[1].deep_unpack();
 
@@ -50,7 +55,6 @@ class WindowListPrefsWidget extends Gtk.Grid {
         };
 
         let radio = null;
-        let currentRadio = null;
         for (let i = 0; i < modes.length; i++) {
             let mode = modes[i];
             let label = modeLabels[mode];
@@ -60,43 +64,30 @@ class WindowListPrefsWidget extends Gtk.Grid {
             }
 
             radio = new Gtk.RadioButton({
-                active: !i,
                 label,
                 group: radio,
+                action_name: 'window-list.grouping-mode',
+                action_target: new GLib.Variant('s', mode),
             });
             grid.add(radio);
-
-            if (currentMode === mode)
-                currentRadio = radio;
-
-            radio.connect('toggled', button => {
-                if (button.active)
-                    this._settings.set_string('grouping-mode', mode);
-            });
         }
-
-        if (currentRadio)
-            currentRadio.active = true;
 
         let check = new Gtk.CheckButton({
             label: _('Show on all monitors'),
+            action_name: 'window-list.show-on-all-monitors',
             margin_top: 6,
         });
-        this._settings.bind('show-on-all-monitors', check, 'active', Gio.SettingsBindFlags.DEFAULT);
         this.add(check);
 
         check = new Gtk.CheckButton({
             label: _('Show windows from all workspaces'),
+            action_name: 'window-list.display-all-workspaces',
             margin_top: 6,
         });
-        this._settings.bind('display-all-workspaces', check, 'active', Gio.SettingsBindFlags.DEFAULT);
         this.add(check);
     }
 });
 
 function buildPrefsWidget() {
-    let widget = new WindowListPrefsWidget();
-    widget.show_all();
-
-    return widget;
+    return new WindowListPrefsWidget();
 }
